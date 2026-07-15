@@ -1,0 +1,38 @@
+{
+    "english": [
+        "The quick brown fox jumps over the lazy dog near the riverbank.",
+        "Good morning! I'd like to schedule a meeting for next Tuesday at three PM.",
+        "Our quarterly revenue increased by twelve point five percent compared to last year.",
+        "Please contact John Smith at extension four two seven for further assistance.",
+        "The weather forecast predicts scattered thunderstorms throughout the weekend.",
+        "I'm sorry, but I'm unable to process your request at this time.",
+        "Welcome to our customer support line. How may I help you today?",
+        "The package will be delivered between nine AM and twelve PM tomorrow.",
+        "Could you please repeat that? I didn't quite catch what you said.",
+        "Thank you for your patience. Your call is very important to us."
+    ],
+    "arabic": [
+        "مرحبا بكم في خدمة العملاء. كيف يمكنني مساعدتكم اليوم؟",
+        "الطقس اليوم مشمس مع درجة حرارة تصل إلى خمسة وثلاثين درجة مئوية.",
+        "يرجى الاتصال بنا على الرقم صفر واحد اثنان ثلاثة أربعة خمسة.",
+        "شكراً لصبركم. سيتم تحويل مكالمتكم إلى القسم المختص.",
+        "موعد الاجتماع القادم يوم الأحد الساعة العاشرة صباحاً.",
+        "نعتذر عن أي إزعاج قد سببناه لكم ونعدكم بتحسين خدماتنا.",
+        "يمكنكم زيارة موقعنا الإلكتروني للاطلاع على أحدث العروض والخصومات.",
+        "تم إرسال الطلب بنجاح وسيتم التوصيل خلال ثلاثة أيام عمل.",
+        "هل تريد الاستمرار في اللغة العربية أم التحويل إلى اللغة الإنجليزية؟",
+        "مع السلامة ونتمنى لكم يوماً سعيداً."
+    ],
+    "hindi": [
+        "नमस्ते, हमारी ग्राहक सेवा में आपका स्वागत है। मैं आपकी कैसे मदद कर सकता हूँ?",
+        "आज का मौसम साफ रहेगा और तापमान पैंतीस डिग्री तक पहुँच सकता है।",
+        "कृपया अपना ऑर्डर नंबर बताएं ताकि हम आपकी शिकायत दर्ज कर सकें।",
+        "आपका पैकेज कल सुबह नौ बजे से दोपहर बारह बजे के बीच डिलीवर किया जाएगा।",
+        "धन्यवाद आपके धैर्य के लिए। आपकी कॉल हमारे लिए बहुत महत्वपूर्ण है।",
+        "क्या आप कृपया दोबारा बता सकते हैं? मैंने ठीक से नहीं सुना।",
+        "हमारी नई योजना में असीमित कॉलिंग और पचास जीबी डेटा शामिल है।",
+        "आपका खाता सफलतापूर्वक अपडेट कर दिया गया है।",
+        "अगली बैठक सोमवार को सुबह दस बजे निर्धारित की गई है।",
+        "शुभ रात्रि, और हमसे संपर्क करने के लिए धन्यवाद।"
+    ]
+}

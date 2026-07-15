@@ -1,0 +1,11 @@
+language,model,sentence_idx,text,latency_s,rtf,audio_duration_s,audio_path,wer,speaker_similarity,mos
+english,F5-TTS,0,The quick brown fox jumps over the lazy dog near the riverbank.,2.112,0.384,5.5,audio/english/f5_tts_00.wav,,,
+english,F5-TTS,1,Good morning! I'd like to schedule a meeting for next Tuesday at three PM.,1.685,0.383,4.4,audio/english/f5_tts_01.wav,,,
+english,F5-TTS,2,Our quarterly revenue increased by twelve point five percent compared to last ye,2.166,0.380,5.7,audio/english/f5_tts_02.wav,,,
+english,F5-TTS,3,Please contact John Smith at extension four two seven for further assistance.,2.553,0.381,6.7,audio/english/f5_tts_03.wav,,,
+english,F5-TTS,4,The weather forecast predicts scattered thunderstorms throughout the weekend.,2.052,0.380,5.4,audio/english/f5_tts_04.wav,,,
+english,F5-TTS,5,"I'm sorry, but I'm unable to process your request at this time.",1.884,0.377,5.0,audio/english/f5_tts_05.wav,,,
+english,F5-TTS,6,Welcome to our customer support line. How may I help you today?,1.763,0.383,4.6,audio/english/f5_tts_06.wav,,,
+english,F5-TTS,7,The package will be delivered between nine AM and twelve PM tomorrow.,2.006,0.380,5.28,audio/english/f5_tts_07.wav,,,
+english,F5-TTS,8,Could you please repeat that? I didn't quite catch what you said.,1.565,0.382,4.1,audio/english/f5_tts_08.wav,,,
+english,F5-TTS,9,Thank you for your patience. Your call is very important to us.,1.756,0.382,4.6,audio/english/f5_tts_09.wav,,,
