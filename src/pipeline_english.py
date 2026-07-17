@@ -91,43 +91,34 @@ def run_xtts_english(sentences, reference_wav, output_dir, collector):
     clear_gpu()
 
 
-def run_cosyvoice_english(sentences, reference_wav, output_dir, collector):
-    """Run CosyVoice2 on English sentences."""
+def run_f5_english(sentences, reference_wav, output_dir, collector):
+    """Run F5-TTS on English sentences."""
     print("\n" + "=" * 60)
-    print("[AUDIO] ENGLISH — Model 3: CosyVoice2")
+    print("[AUDIO] ENGLISH — Model 3: F5-TTS (Zero-Shot Flow Matching)")
     print("=" * 60)
     print_gpu_status()
 
     try:
-        # CosyVoice2 setup — may require cloning the repo
-        # pip install -e . from the CosyVoice2 repo
-        from cosyvoice.cli.cosyvoice import CosyVoice2
-        import torchaudio
-
-        model = CosyVoice2('iic/CosyVoice2-0.5B', load_jit=False, load_trt=False)
+        from f5_tts.api import F5TTS
+        model = F5TTS()
 
         for i, text in enumerate(sentences):
             print(f"\n  [{i+1}/{len(sentences)}] \"{text[:60]}...\"")
-            output_path = os.path.join(output_dir, f"cosyvoice2_{i:02d}.wav")
+            output_path = os.path.join(output_dir, f"f5_tts_{i:02d}.wav")
 
             with Timer("generate") as t:
-                # CosyVoice2 cross-lingual/clone mode
-                output = model.inference_cross_lingual(
-                    text,
-                    reference_wav
+                audio, sr, _ = model.infer(
+                    ref_file=reference_wav,
+                    ref_text="Some call me nature. Others call me Mother Nature.",
+                    gen_text=text,
                 )
-                # Collect streamed chunks
-                audio_chunks = []
-                for chunk in output:
-                    audio_chunks.append(chunk['tts_speech'])
-                full_audio = torch.cat(audio_chunks, dim=-1)
 
-            save_audio(full_audio, output_path, sample_rate=22050)
+            save_audio(audio, output_path, sample_rate=sr)
             duration = get_audio_duration(output_path)
             rtf = t.elapsed / duration if duration > 0 else float('inf')
 
             collector.add_result(
-                language="english", model_name="CosyVoice2",
+                language="english", model_name="F5-TTS",
                 sentence_idx=i, text=text,
                 latency_s=t.elapsed, rtf=rtf,
                 audio_duration_s=duration, audio_path=output_path
@@ -138,12 +129,9 @@ def run_cosyvoice_english(sentences, reference_wav, output_dir, collector):
         clear_gpu()
 
     except ImportError:
-        print("  [WARNING] CosyVoice2 not installed. Skipping.")
-        print("  To install: git clone https://github.com/FunAudioLLM/CosyVoice2 && cd CosyVoice2 && pip install -e .")
+        print("  [WARNING] F5-TTS not installed. Skipping.")
     except Exception as e:
-        print(f"  [WARNING] CosyVoice2 failed: {e}")
-        print("  This is expected — CosyVoice2 has complex dependencies.")
-        print("  Will document as 'attempted but dependency issues on Colab'")
+        print(f"  [WARNING] F5-TTS failed: {e}")
 
 
 def run_english_pipeline(test_sentences_path="test_sentences.json",
@@ -166,7 +154,7 @@ def run_english_pipeline(test_sentences_path="test_sentences.json",
     # Run each model
     run_chatterbox(sentences, reference_wav, output_base, collector)
     run_xtts_english(sentences, reference_wav, output_base, collector)
-    run_cosyvoice_english(sentences, reference_wav, output_base, collector)
+    run_f5_english(sentences, reference_wav, output_base, collector)
 
     # Save results
     collector.save_csv("english_benchmark.csv")

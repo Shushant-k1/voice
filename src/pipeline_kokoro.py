@@ -24,7 +24,7 @@ def run_kokoro(sentences, language, voice_id, output_dir, collector):
     import kokoro
 
     # Initialize Kokoro pipeline
-    pipeline = kokoro.KPipeline(lang_code=voice_id[:2])  # 'a' for American English, 'h' for Hindi
+    pipeline = kokoro.KPipeline(lang_code=voice_id[0])  # 'a' for American English, 'h' for Hindi
 
     for i, text in enumerate(sentences):
         print(f"\n  [{i+1}/{len(sentences)}] \"{text[:60]}...\"")

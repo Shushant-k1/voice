@@ -47,16 +47,65 @@ def run_mms_tts_arabic(sentences, output_dir, collector):
     del model, tokenizer; clear_gpu()
 
 
+def run_f5_arabic(sentences, reference_wav, output_dir, collector):
+    print("\n" + "=" * 60)
+    print("[AUDIO] ARABIC — Model 3: F5-TTS (Zero-Shot Flow Matching)")
+    print("=" * 60)
+    
+    romanized_arabic_sentences = [
+        "Marhaban bikum fee khidmat al-umala. Kayfa yumkinuni musa'adatukum al-yawm?",
+        "Al-taqsu al-yawma mushmisun ma'a darajati hararatin tasilu ila khamsatin wa-thalatheena darajatan mi'awiyyah.",
+        "Yurja al-ittisalu bina 'ala al-raqm sifr wahid ithnan thalathah arba'ah khamsah.",
+        "Shukran li-sabrikum. Sayatimm taheel mukalamatukum ila al-qism al-mukhtass.",
+        "Maw'id al-ijtima' al-qadim yawm al-ahad al-sa'ah al-'ashirah sabahan.",
+        "Na'tadiru 'an ayyi iz'ajin qad sabbabnahu lakum wa-na'idukum bi-tahseeni khadamatina.",
+        "Yumkinukum ziyaratu mawqi'ina al-iliktroni lil-ittila' 'ala ahdath al-urood wal-khusoomat.",
+        "Tamma irsal al-talab bi-najah wa-sayatimm al-tawseel khilal thalathat ayyam 'amal.",
+        "Hal tureed al-istimrar fee al-lughah al-arabiyyah am al-tahweel ila al-lughah al-injleeziyyah?",
+        "Ma'a al-salamah wa-natamanna lakum yawman sa'eedan."
+    ]
+
+    try:
+        from f5_tts.api import F5TTS
+        model = F5TTS()
+        for i, text in enumerate(sentences):
+            gen_text = text
+            if i < len(romanized_arabic_sentences):
+                gen_text = romanized_arabic_sentences[i]
+                print(f"  [{i+1}/{len(sentences)}] Using Romanized phonetic text: \"{gen_text}\"")
+            else:
+                print(f"  [{i+1}/{len(sentences)}] \"{text[:50]}\"")
+                
+            output_path = os.path.join(output_dir, f"f5_tts_{i:02d}.wav")
+            with Timer("generate") as t:
+                audio, sr, _ = model.infer(
+                    ref_file=reference_wav,
+                    ref_text="Some call me nature. Others call me Mother Nature.",
+                    gen_text=gen_text,
+                )
+            save_audio(audio, output_path, sample_rate=sr)
+            duration = get_audio_duration(output_path)
+            rtf = t.elapsed / duration if duration > 0 else float('inf')
+            collector.add_result("arabic", "F5-TTS", i, text, t.elapsed, rtf, duration, output_path)
+            print(f"  [SUCCESS] Latency:{t.elapsed:.2f}s | RTF:{rtf:.3f}")
+        del model; clear_gpu()
+    except ImportError:
+        print("  [WARNING] F5-TTS not installed. Skipping.")
+    except Exception as e:
+        print(f"  [WARNING] F5-TTS failed: {e}")
+
+
 def run_arabic_pipeline(test_sentences_path="test_sentences.json",
                         reference_wav="audio/reference/reference_voice.wav",
                         output_base="audio/arabic", results_dir="results"):
-    print("\n  ARABIC PIPELINE — Comparing Models")
+    print("\n  ARABIC PIPELINE — Comparing 3 Models")
     with open(test_sentences_path, 'r', encoding='utf-8') as f:
         sentences = json.load(f)["arabic"]
     os.makedirs(output_base, exist_ok=True)
     collector = BenchmarkCollector(results_dir)
     run_xtts_arabic(sentences, reference_wav, output_base, collector)
     run_mms_tts_arabic(sentences, output_base, collector)
+    run_f5_arabic(sentences, reference_wav, output_base, collector)
     collector.save_csv("arabic_benchmark.csv")
     collector.print_summary()
     return collector

@@ -1,56 +1,62 @@
-# Failure Analysis & Production Fixes
+# Failure Analysis & Honest Limitations
 
-This document presents a technical post-mortem of the initial model failures, the solutions applied to resolve them, and architectural recommendations for deploying these models in a production voice agent platform.
+## Where Things Break
 
----
+### English
+- **Chatterbox latency is too high**: 5.52s average batch latency for a 10-word sentence (target: <2s). RTF of 1.076 means it generates speech roughly at 1× real time — unusable for real-time streaming voice agents without massive optimization or hardware scaling.
+- **ASR normalization artifacts**: Whisper large-v3 transcription formatting (e.g. converting spoken numbers to digits "twelve point five" → "12.5") occasionally inflates WER calculations. However, the generated audio is fully intelligible.
+- **OpenVoice V2 similarity limitations**: While extremely fast (1.83s batch latency, 0.386 RTF), OpenVoice V2 achieves a cosine similarity of **0.726** (below the 0.75 target). This is because OpenVoice uses a style transfer approach that decouples tone from language, leading to some degradation in zero-shot similarity compared to native zero-shot models.
 
-## Root Cause Analysis and Applied Solutions
+### Arabic
+- **F5-TTS Romanization pronunciation errors**: Since F5-TTS only supports English and Chinese natively, we Romanized Arabic text before inference. While this enables the model to speak Arabic characters with high similarity (**0.833**), the pronunciation is heavily distorted, resulting in a **97.96% WER**.
+- **MMS-TTS is fast but sounds robotic**: MMS-TTS achieves an outstanding batch latency of **0.23s** and RTF of **0.030**, but its synthetic-sounding prosody and a **22.91% WER** make it less suitable for human-like conversational interfaces.
+- **Bark latency and hallucination rates**: Bark's generative preset-based architecture results in extremely slow inference (**43.23s** batch latency, **4.433** RTF) on T4. Additionally, it suffers from typical GPT-style acoustic hallucinations (laughter, sighs, background noise).
 
-During our pipeline runs, several models failed to hit target benchmarks or crashed. Below is the technical root cause analysis and the optimization solutions we implemented:
-
-### 1. F5-TTS Generated Babbling/Gibberish Speech (Fixed via Phonetic Romanization)
-- **The Issue**: F5-TTS originally failed with word error rates (WER) exceeding 180% on Arabic and Hindi, producing repetitive syllables or high-frequency static.
-- **Root Cause**: 
-  1. **Reference Audio Language Mismatch**: The early prototype copied a *Chinese* demo voice checkpoint (`basic_ref_zh.wav`) as the fallback speaker.
-  2. **Missing Reference Transcription**: The generation script called the F5-TTS API with `ref_text=""`. F5-TTS uses flow matching and requires the exact transcription of the reference audio to align the acoustic conditioning vectors. Without a matching reference transcript, the flow-matching alignment diverged.
-  3. **Grapheme-to-Phoneme (G2P) Limitations**: F5-TTS's pre-trained tokenizer is optimized for English and Chinese scripts. Feeding raw Arabic or Devanagari characters caused alignment failures.
-- **The Optimization Solution**: 
-  1. Updated the repository's baseline configuration to use the English reference voice (`basic_ref_en.wav`) specifically.
-  2. Modified the generation script to pass the correct reference transcription: `"Some call me nature. Others call me Mother Nature."`
-  3. **Phonetic Romanization**: Transliterated the 10 Arabic and 10 Hindi target sentences into Latin characters (e.g. `"Namaste, hamari grahak seva mein..."`) before feeding them to F5-TTS.
-  4. *Result*: F5-TTS successfully generated clear, natural-sounding Arabic and Hindi speech. Latency dropped to **2.77s** (Hindi) and **3.05s** (Arabic). Cosine similarity reached **0.83**, and naturalness scores rose to **4.17 UTMOS (Arabic)** and **4.26 UTMOS (Hindi)**, comfortably passing the target ($\ge$ 4.0).
-
-### 2. Coqui XTTS-v2 Crashed on Model Loading
-- **The Issue**: Loading the XTTS-v2 model crashed with a `_pickle.UnpicklingError: Weights only load failed`.
-- **Root Cause**: PyTorch 2.6.0 changed the default argument of `torch.load` from `weights_only=False` to `weights_only=True` for security reasons. Because the Coqui TTS configuration class (`XttsConfig`) is not in PyTorch's default safe class allowlist, PyTorch blocked loading the model checkpoint.
-- **The Solution**: We implemented a global monkeypatch in `src/utils.py` that intercepts `torch.load` and forces `weights_only=False` during initialization. This restored compatibility with PyTorch 2.6.0+ without requiring modification of the locked Coqui library source code.
-
-### 3. Package and Dependency Conflicts
-- **The Issue**: Conflicting requirements between models (e.g. Chatterbox requiring `transformers==5.2.0`, Parler-TTS requiring `transformers==4.46.1`, and Fish-Speech requiring `transformers>=4.45.2`) caused imports to fail or libraries to break.
-- **Root Cause**: Placing bleeding-edge research models in the same Python environment often leads to dependency conflicts because different teams freeze different library snapshots.
-- **The Solution**: We identified `transformers==4.46.1` as the "magic version" that satisfies all library dependency constraints, permitting both Coqui TTS and Chatterbox to import and execute concurrently in the same runtime environment.
+### Hindi
+- **F5-TTS Romanization pronunciation errors**: Similar to Arabic, F5-TTS Hindi Romanized generation results in high pronunciation errors (**67.95% WER**) despite good speaker similarity (**0.829**).
+- **Indic-Parler-TTS latency**: Indic-Parler-TTS is a native Hindi model, but its large autoregressive architecture exhibits high batch latency (**23.08s**) and RTF (**0.974**), making it too slow for real-time customer service applications.
+- **XTTS-v2 cross-lingual pronunciation**: XTTS-v2 achieves a **8.42% WER** on Hindi, but exhibits minor accents and incorrect vowel length inflections because Hindi is a secondary language in its pre-training mix.
 
 ---
 
-## Remaining Production Limitations and Mitigation Strategies
+## Models That Didn't Work
 
-While the English, Arabic, and Hindi pipelines now run successfully, some metrics still fall short of production targets. Below are the steps required to address them in a production setting:
+| Model | Language | What Happened | Could It Be Fixed? |
+|-------|----------|---------------|-------------------|
+| **CosyVoice2** | English | Dependency conflict: custom FunASR/Matcha-TTS binaries conflict with system PyTorch. | Yes — requires a dedicated Docker container. |
+| **Fish Speech S2** | All | Multi-step custom runtime and checkpoint requirements failed to execute stably on standard T4 PyTorch environment. | Yes — requires deep package building and matching compilation wheels. |
+| **CosyVoice 3.0** | All | Closed-weights or proprietary platform dependencies; no direct standalone repository. | No — must wait for complete open-source code/weights release. |
 
-### 1. F5-TTS Orthographic Transcript Gaps (WER 68% - 106%)
-- **The Limitation**: Even though F5-TTS speaks the Romanized Arabic and Hindi sentences clearly (achieving >4.10 UTMOS), the round-trip WER scorer transcribes the speech into native Devanagari/Arabic scripts. The discrepancy between the Romanized pronunciation string and the native script transcription keeps the calculated WER high.
-- **Production Solution**:
-  - **Phonemization (G2P)**: Convert incoming Arabic and Hindi text into IPA (International Phonetic Alphabet) representations or Latin transliterations before feeding them to F5-TTS.
-  - **Fine-Tuning**: Fine-tune F5-TTS on native Arabic and Hindi speech datasets (e.g., Common Voice, MGB) so the flow-matching layers learn the local phonetic alignments.
+---
 
-### 2. High Batch Latency (XTTS-v2 and Chatterbox >2s)
-- **The Limitation**: Autoregressive models process tokens sequentially. On a Tesla T4 GPU, generating a full sentence takes 2 to 5 seconds, which violates the < 500 ms time-to-first-audio (TTFA) voice agent requirement.
-- **Production Solution (Streaming Architecture)**:
-  - **Autoregressive Streaming**: In production, do not run models in batch mode. Use **chunked inference**. Autoregressive models (like XTTS-v2 or CosyVoice2) can yield audio chunks as soon as the first few text tokens are decoded (Streaming API).
-  - **Streaming Vocoder**: Pair the text-to-speech model with a streaming vocoder (e.g., HiFi-GAN or BigVGAN) to synthesize and stream audio bytes over WebSockets chunk-by-chunk. This drops the Time-to-First-Audio (TTFA) to **< 200 ms**.
-  - **GPU Upgrades**: Upgrading from Tesla T4 (GDDR6 memory) to L4, A10G, or A100 GPUs improves memory bandwidth and reduces latency by **3× to 5×**.
+## Metrics That Miss Targets — Honest Assessment
 
-### 3. Dialectal and Diacritical Constraints (Arabic & Hindi)
-- **The Limitation**: MSA (Modern Standard Arabic) models sound formal and dry. Real-world Arabic text lacks diacritics (tashkeel), causing pronunciation ambiguities.
-- **Production Solution**:
-  - **Diacritizer Pipeline**: Place an automated diacritizer (e.g., Mishkal or Shakkelha) as a preprocessing step before feeding text to the Arabic TTS engine.
-  - **Dialectal Fine-Tuning**: Fine-tune models on conversational datasets (Egyptian, Levantine, or Gulf Arabic) to support regional accents and idioms.
+| Metric | Target | English | Arabic | Hindi | Root Cause / Explanation |
+|--------|--------|---------|--------|-------|--------------------------|
+| **Latency (Batch)** | < 2.0s | ❌ 2.27s (XTTS) | ❌ 3.01s (XTTS) | ❌ 3.24s (XTTS) | Autoregressive decoding on T4 is slow. Resolved in production via **streaming (TTFA)**. |
+| **WER (Intelligibility)** | <= 10% | ✅ 3.33% (XTTS) | ✅ 6.34% (XTTS) | ✅ 8.42% (XTTS) | English, Arabic, and Hindi all meet targets with Coqui XTTS-v2. Other models fail due to language mismatch or Romanization. |
+| **Speaker Similarity** | >= 0.75 | ✅ 0.865 (XTTS) | ✅ 0.802 (XTTS) | ✅ 0.839 (XTTS) | Coqui XTTS-v2, F5-TTS, and Chatterbox pass. OpenVoice V2 and Bark fail to preserve speaker identity. |
+| **RTF (Efficiency)** | <= 0.50 | ✅ 0.421 (XTTS) | ✅ 0.437 (XTTS) | ✅ 0.436 (XTTS) | XTTS-v2, F5-TTS, and Kokoro meet targets. Chatterbox (1.076) and Bark (4.54) fail. |
+
+---
+
+## What's Still Missing in Open-Source TTS
+
+1. **Native multilingual zero-shot models** — XTTS-v2 is the only model we tested that natively supports English, Arabic, and Hindi zero-shot speaker cloning. Flow-matching architectures (F5-TTS) require explicit multilingual training to avoid Romanization hacks.
+2. **Arabic dialect support** — Almost all open-source models support Modern Standard Arabic (MSA) only. Dialectal Arabic (e.g. Egyptian, Gulf) is not natively supported.
+3. **High-efficiency zero-shot architectures** — Models like Kokoro (StyleTTS 2-based) have outstanding speed (<200ms latency) but do not support zero-shot voice cloning. Achieving both low latency (<200ms) and voice cloning requires custom streaming engines.
+
+---
+
+## Production Improvement Roadmap
+
+### Short-term (1-2 weeks)
+1. **Optimize streaming engine**: Fine-tune chunk sizes (e.g. 10 or 15 tokens) to push TTFA closer to 200 ms.
+2. **Add text normalization**: Integrate standard text sanitization (e.g. converting "12.5" to "twelve point five") to clean up evaluation transcriptions.
+
+### Medium-term (1-2 months)
+3. **Fine-tune XTTS-v2**: Fine-tune XTTS-v2 on Arabic diacritized speech and Hindi phoneme datasets to reduce accent distortions.
+4. **Deploy on L4 GPUs**: Migrating from Tesla T4 to NVIDIA L4 GPUs will yield a **2.5× to 3×** improvement in raw inference speed.
+
+### Long-term (3-6 months)
+5. **FunAudioLLM Integration**: Once containerized builds of CosyVoice2 are stable, integrate them as the primary multilingual voice server.

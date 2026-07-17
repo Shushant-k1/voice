@@ -1,0 +1,17 @@
+language,model,ttfa_ms
+en,xtts_v2,N/A
+en,chatterbox,N/A
+en,f5_tts,3720.978
+en,kokoro,680.936
+en,openvoice,N/A
+en,bark,N/A
+ar,xtts_v2,N/A
+ar,f5_tts,5209.096
+ar,mms,852.129
+ar,bark,N/A
+hi,xtts_v2,N/A
+hi,f5_tts,3361.918
+hi,indic_parler,N/A
+hi,kokoro,749.533
+hi,mms,905.062
+hi,bark,N/A

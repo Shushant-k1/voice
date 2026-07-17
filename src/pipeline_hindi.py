@@ -81,10 +81,58 @@ def run_mms_tts_hindi(sentences, output_dir, collector):
     del model, tokenizer; clear_gpu()
 
 
+def run_f5_hindi(sentences, reference_wav, output_dir, collector):
+    print("\n" + "=" * 60)
+    print("[AUDIO] HINDI — Model 4: F5-TTS (Zero-Shot Flow Matching)")
+    print("=" * 60)
+    
+    romanized_hindi_sentences = [
+        "Namaste, hamari grahak seva mein aapka swagat hai. Main aapki kaise madad kar sakta hoon?",
+        "Aaj ka mausam saaf rahega aur taapmaan paintis degree tak pahunch sakta hai.",
+        "Kripya apna order number batayein taaki hum aapki shikayat darj kar sakein.",
+        "Aapka package kal subah nau baje se dopahar baarah baje ke beech deliver kiya jayega.",
+        "Dhanyavaad aapke dhairya ke liye. Aapki call hamare liye bahut mahatvapurna hai.",
+        "Kya aap kripya dobara bata sakte hain? Maine theek se nahi suna.",
+        "Hamari nayi yojna mein aseemit calling aur pachaas GB data shaamil hai.",
+        "Aapka khaata safaltapoorvak update kar diya gaya hai.",
+        "Agli baithak somvaar ko subah das baje nirdharit ki gayi hai.",
+        "Shubh raatri, aur humse sampark karne ke liye dhanyavaad."
+    ]
+
+    try:
+        from f5_tts.api import F5TTS
+        model = F5TTS()
+        for i, text in enumerate(sentences):
+            gen_text = text
+            if i < len(romanized_hindi_sentences):
+                gen_text = romanized_hindi_sentences[i]
+                print(f"  [{i+1}/{len(sentences)}] Using Romanized phonetic text: \"{gen_text}\"")
+            else:
+                print(f"  [{i+1}/{len(sentences)}] \"{text[:50]}\"")
+                
+            output_path = os.path.join(output_dir, f"f5_tts_{i:02d}.wav")
+            with Timer("generate") as t:
+                audio, sr, _ = model.infer(
+                    ref_file=reference_wav,
+                    ref_text="Some call me nature. Others call me Mother Nature.",
+                    gen_text=gen_text,
+                )
+            save_audio(audio, output_path, sample_rate=sr)
+            duration = get_audio_duration(output_path)
+            rtf = t.elapsed / duration if duration > 0 else float('inf')
+            collector.add_result("hindi", "F5-TTS", i, text, t.elapsed, rtf, duration, output_path)
+            print(f"  [SUCCESS] Latency:{t.elapsed:.2f}s | RTF:{rtf:.3f}")
+        del model; clear_gpu()
+    except ImportError:
+        print("  [WARNING] F5-TTS not installed. Skipping.")
+    except Exception as e:
+        print(f"  [WARNING] F5-TTS failed: {e}")
+
+
 def run_hindi_pipeline(test_sentences_path="test_sentences.json",
                        reference_wav="audio/reference/reference_voice.wav",
                        output_base="audio/hindi", results_dir="results"):
-    print("\n  HINDI PIPELINE — Comparing Models")
+    print("\n  HINDI PIPELINE — Comparing 4 Models")
     with open(test_sentences_path, 'r', encoding='utf-8') as f:
         sentences = json.load(f)["hindi"]
     os.makedirs(output_base, exist_ok=True)
@@ -92,6 +140,7 @@ def run_hindi_pipeline(test_sentences_path="test_sentences.json",
     run_indic_parler(sentences, output_base, collector)
     run_xtts_hindi(sentences, reference_wav, output_base, collector)
     run_mms_tts_hindi(sentences, output_base, collector)
+    run_f5_hindi(sentences, reference_wav, output_base, collector)
     collector.save_csv("hindi_benchmark.csv")
     collector.print_summary()
     return collector

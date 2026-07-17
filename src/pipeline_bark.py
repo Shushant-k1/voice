@@ -26,9 +26,10 @@ def run_bark(sentences, language, lang_code, output_dir, collector):
     preload_models()
 
     # Bark speaker prompts per language
+    # Note: Arabic is not natively supported by Bark, so we fall back to an English speaker.
     speaker_map = {
         "english": "v2/en_speaker_6",
-        "arabic": "v2/ar_speaker_0",
+        "arabic": "v2/en_speaker_6",  # Fallback
         "hindi": "v2/hi_speaker_0",
     }
     speaker = speaker_map.get(language, "v2/en_speaker_6")
@@ -37,19 +38,22 @@ def run_bark(sentences, language, lang_code, output_dir, collector):
         print(f"\n  [{i+1}/{len(sentences)}] \"{text[:60]}...\"")
         output_path = os.path.join(output_dir, f"bark_{i:02d}.wav")
 
-        with Timer("generate") as t:
-            audio_array = generate_audio(text, history_prompt=speaker)
+        try:
+            with Timer("generate") as t:
+                audio_array = generate_audio(text, history_prompt=speaker)
 
-        save_audio(audio_array, output_path, sample_rate=SAMPLE_RATE)
-        duration = get_audio_duration(output_path)
-        rtf = t.elapsed / duration if duration > 0 else float('inf')
+            save_audio(audio_array, output_path, sample_rate=SAMPLE_RATE)
+            duration = get_audio_duration(output_path)
+            rtf = t.elapsed / duration if duration > 0 else float('inf')
 
-        collector.add_result(
-            language=language, model_name="BARK", sentence_idx=i,
-            text=text, latency_s=t.elapsed, rtf=rtf,
-            audio_duration_s=duration, audio_path=output_path
-        )
-        print(f"    Latency: {t.elapsed:.3f}s | Duration: {duration:.2f}s | RTF: {rtf:.3f}")
+            collector.add_result(
+                language=language, model_name="BARK", sentence_idx=i,
+                text=text, latency_s=t.elapsed, rtf=rtf,
+                audio_duration_s=duration, audio_path=output_path
+            )
+            print(f"    Latency: {t.elapsed:.3f}s | Duration: {duration:.2f}s | RTF: {rtf:.3f}")
+        except Exception as e:
+            print(f"    [ERROR] Bark generation failed for sentence {i}: {e}")
 
     clear_gpu()
 

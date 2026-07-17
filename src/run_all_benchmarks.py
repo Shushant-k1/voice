@@ -91,18 +91,13 @@ def main():
     install_package("openvoice", "openvoice")
     install_package("melo", "melo-tts")
 
-    # Fish Speech (may not have a simple pip install)
-    install_package("fish_speech", "fish-speech")
-
     # ─── Phase 2: Run existing pipelines (skip if results already exist) ─
     print("\n--- Phase 2: Running existing pipelines ---")
 
     existing_pipelines = [
-        ("pipeline_english.py", "English (XTTS-v2 + Chatterbox)"),
-        ("pipeline_arabic.py", "Arabic (XTTS-v2 + MMS-TTS)"),
-        ("pipeline_hindi.py", "Hindi (XTTS-v2 + MMS-TTS + Indic-Parler)"),
-        ("pipeline_fish.py", "F5-TTS (English + Arabic + Hindi)"),
-        ("run_f5_english.py", "F5-TTS English"),
+        ("pipeline_english.py", "English (XTTS-v2 + Chatterbox + F5-TTS)"),
+        ("pipeline_arabic.py", "Arabic (XTTS-v2 + MMS-TTS + F5-TTS)"),
+        ("pipeline_hindi.py", "Hindi (XTTS-v2 + MMS-TTS + Indic-Parler + F5-TTS)"),
     ]
 
     for script, desc in existing_pipelines:
@@ -119,7 +114,6 @@ def main():
         ("pipeline_bark.py", "Bark (English + Arabic + Hindi)"),
         ("pipeline_kokoro.py", "Kokoro v1.0 (English + Hindi)"),
         ("pipeline_openvoice.py", "OpenVoice V2 (English)"),
-        ("pipeline_fish_speech.py", "Fish Speech (English + Arabic + Hindi)"),
     ]
 
     for script, desc in new_pipelines:

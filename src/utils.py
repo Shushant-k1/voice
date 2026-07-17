@@ -34,7 +34,7 @@ try:
             test_elements = test_elements.to(elements.device)
         return original_isin_mps_friendly(elements, test_elements)
     transformers.pytorch_utils.isin_mps_friendly = patched_isin_mps_friendly
-except ImportError:
+except (ImportError, AttributeError):
     pass
 
 # Patch StreamGenerationConfig for newer transformers compatibility in XTTS-v2 streaming
@@ -96,7 +96,7 @@ except ImportError:
 
 
 
-# ─── Audio I/O ───────────────────────────────────────────────────────────────
+# Audio helper functions
 
 def save_audio(audio_data, path, sample_rate=24000):
     """Save audio tensor/numpy array to wav file."""
@@ -118,7 +118,7 @@ def get_audio_duration(path):
     return info.duration
 
 
-# ─── Timing ──────────────────────────────────────────────────────────────────
+# Timer class
 
 class Timer:
     """Context manager for timing operations."""
@@ -133,10 +133,10 @@ class Timer:
     def __exit__(self, *args):
         self.elapsed = time.perf_counter() - self.start
         if self.label:
-            print(f"  ⏱ [{self.label}] {self.elapsed:.3f}s")
+            print(f"  [{self.label}] took {self.elapsed:.3f}s")
 
 
-# ─── Metrics Collection ─────────────────────────────────────────────────────
+# Metrics collector for evaluations
 
 class BenchmarkCollector:
     """Collects and saves benchmark results across models and languages."""
@@ -227,7 +227,7 @@ class BenchmarkCollector:
         print("=" * 90)
 
 
-# ─── Test Sentences Loader ───────────────────────────────────────────────────
+# Loading input test sentences
 
 def load_test_sentences(path="test_sentences.json"):
     """Load test sentences from JSON file."""
@@ -235,7 +235,7 @@ def load_test_sentences(path="test_sentences.json"):
         return json.load(f)
 
 
-# ─── GPU Memory Management ──────────────────────────────────────────────────
+# GPU memory utilities
 
 def clear_gpu():
     """Free GPU memory between model loads."""

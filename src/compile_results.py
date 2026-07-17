@@ -21,20 +21,26 @@ def compile_markdown():
             name = name[:-4]
         if name == 'indic_parler_tts':
             name = 'indic_parler'
+        if name == 'openvoice_v2':
+            name = 'openvoice'
+        if name == 'f5_tts':
+            name = 'f5'
         return name
 
     # 1. Load Latency & RTF
-    latency_data = []
+    all_rows = []
     for f in glob.glob('results/*_benchmark.csv'):
         df = pd.read_csv(f)
         df['model'] = df['model'].apply(norm_name)
-        for _, row in df.groupby(['language', 'model']):
-            lang = row['language'].iloc[0]
-            model = row['model'].iloc[0]
-            avg_lat = row['latency_s'].mean()
-            avg_rtf = row['rtf'].mean()
-            latency_data.append({'language': lang, 'model': model, 'latency': avg_lat, 'rtf': avg_rtf})
-    df_lat = pd.DataFrame(latency_data)
+        if 'latency_s' in df.columns and 'rtf' in df.columns:
+            all_rows.append(df[['language', 'model', 'sentence_idx', 'latency_s', 'rtf']])
+    
+    if all_rows:
+        df_all = pd.concat(all_rows).drop_duplicates(subset=['language', 'model', 'sentence_idx'])
+        df_lat = df_all.groupby(['language', 'model'])[['latency_s', 'rtf']].mean().reset_index()
+        df_lat = df_lat.rename(columns={'latency_s': 'latency'})
+    else:
+        df_lat = pd.DataFrame(columns=['language', 'model', 'latency', 'rtf'])
 
     # 2. Load Speaker Similarity
     df_sim = pd.DataFrame()
